@@ -1,0 +1,208 @@
+---
+title: "727 FHW"
+output:
+  html_document:
+    df_print: paged
+date: "2024-12-01"
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(ggplot2) 
+library(tidyverse)
+library(glue)
+library(shiny)
+```
+
+```{r}
+#url
+base_url <- "https://api.bls.gov/publicAPI/v2/timeseries/data/"
+```
+
+```{r}
+#api
+api_key <- "18746fb34f404abeacf37bd7aefcd6a7"
+```
+
+```{r}
+#payload body
+payload <- toJSON(list(
+  seriesid = list("APU0000708111"),
+  startyear = "2017",
+  endyear = "2024",
+  registrationkey = api_key
+), auto_unbox = TRUE, pretty = TRUE)
+
+# Print payload to verify
+cat(payload)
+```
+
+```{r}
+#request
+response <- POST(base_url,
+                body = payload,
+                content_type("application/json"),
+                encode = "json")
+
+
+```
+
+```{r}
+#list
+x <- content(response, "text") %>% jsonlite::fromJSON()
+
+
+```
+
+```{r}
+x$Results$series$data[[1]] %>% as_tibble()
+
+
+
+```
+
+```{r}
+cleaned_data <- x$Results$series$data[[1]] %>% 
+  as_tibble() %>%
+  mutate(
+    year = as.integer(year),                    
+    value = as.numeric(value),                
+    date = as.Date(paste0(year, "-", substr(period, 2, 3), "-01")) 
+  ) %>%
+  arrange(date)                                  
+
+print(cleaned_data)
+
+```
+
+```{r}
+if (any(is.na(cleaned_data))) {
+  warning("Data contains missing values!")
+}
+
+
+print(range(cleaned_data$date))
+print(range(cleaned_data$value, na.rm = TRUE))
+
+
+```
+
+```{r}
+filtered_data <- cleaned_data %>%
+  filter(date >= as.Date("2020-01-01") & date <= as.Date("2024-12-01"))
+
+
+print(filtered_data)
+
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(cleaned_data, aes(x = date, y = value)) +
+  geom_line(color = "blue", size = 1.2) +
+  labs(
+    title = "Egg Prices Trend (2017-2024)",
+    x = "Date",
+    y = "Price per Dozen (USD)"
+  ) +
+  theme_minimal()
+
+
+
+
+
+```
+
+```{r}
+library(shiny)
+library(ggplot2)
+library(dplyr)
+library(httr)
+library(jsonlite)
+library(tidyr)
+
+# Fetch and clean the data as per your existing code
+# Replace this block with your data fetching and cleaning process
+base_url <- "https://api.bls.gov/publicAPI/v2/timeseries/data/"
+api_key <- "18746fb34f404abeacf37bd7aefcd6a7"
+
+payload <- toJSON(list(
+  seriesid = list("APU0000708111"),
+  startyear = "2017",
+  endyear = "2024",
+  registrationkey = api_key
+), auto_unbox = TRUE, pretty = TRUE)
+
+response <- POST(base_url,
+                body = payload,
+                content_type("application/json"),
+                encode = "json")
+
+x <- content(response, "text") %>% jsonlite::fromJSON()
+
+cleaned_data <- x$Results$series$data[[1]] %>% 
+  as_tibble() %>%
+  mutate(
+    year = as.integer(year),
+    value = as.numeric(value),
+    date = as.Date(paste0(year, "-", substr(period, 2, 3), "-01"))
+  ) %>%
+  arrange(date)
+
+# Shiny UI
+ui <- fluidPage(
+  titlePanel("Egg Prices Trend (2017-2024)"),
+  sidebarLayout(
+    sidebarPanel(
+      dateRangeInput("dateRange", 
+                     label = "Select Date Range:",
+                     start = min(cleaned_data$date),
+                     end = max(cleaned_data$date),
+                     min = min(cleaned_data$date),
+                     max = max(cleaned_data$date)),
+      sliderInput("slider", 
+                  "Price Filter", 
+                  min = min(cleaned_data$value, na.rm = TRUE),
+                  max = max(cleaned_data$value, na.rm = TRUE),
+                  value = c(min(cleaned_data$value, na.rm = TRUE), max(cleaned_data$value, na.rm = TRUE)))
+    ),
+    mainPanel(
+      plotOutput("pricePlot")
+    )
+  )
+)
+
+# Shiny Server
+server <- function(input, output) {
+  filtered_data <- reactive({
+    cleaned_data %>%
+      filter(date >= input$dateRange[1] & date <= input$dateRange[2]) %>%
+      filter(value >= input$slider[1] & value <= input$slider[2])
+  })
+
+  output$pricePlot <- renderPlot({
+    ggplot(filtered_data(), aes(x = date, y = value)) +
+      geom_line(color = "blue", size = 1.2) +
+      labs(
+        title = "Egg Prices Trend",
+        x = "Date",
+        y = "Price per Dozen (USD)"
+      ) +
+      theme_minimal()
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+
+
+```

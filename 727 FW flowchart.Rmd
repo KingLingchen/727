@@ -1,0 +1,36 @@
+---
+title: "727 FW flowchart"
+output: html_document
+date: "2024-12-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(DiagrammeR)
+
+# Create a flowchart
+grViz("
+digraph egg_price_analysis {
+  graph [layout = dot, rankdir = TB]
+
+  # Nodes
+  node [shape = box, style = filled, color = lightblue, fontname = Helvetica]
+  A [label = '1. Collect Data\\nBLS API (Egg Prices)']
+  B [label = '2. Preprocess Data\\nFilter and Clean Data']
+  C [label = '3. Interactive Visualization\\nUsing Shiny']
+  D [label = '4. Time Series Analysis\\nIdentify Patterns and Trends']
+  E [label = '5. Compare\\nTrump vs. Biden Administrations']
+
+  # Edges
+  A -> B
+  B -> C
+  C -> D
+  D -> E
+}
+")
+
+
+```
